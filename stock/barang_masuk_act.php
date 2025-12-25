@@ -1,38 +1,41 @@
-<?php 
+<?php
 include '../dbconnect.php';
-$barang=$_POST['barang']; // ini ID barang nya
-$qty=$_POST['qty'];
-$tanggal=$_POST['tanggal'];
-$ket=$_POST['ket'];
 
-$dt=mysqli_query($conn,"select * from sstock_brg where idx='$barang'");
-$data=mysqli_fetch_array($dt);
-$sisa=$data['stock']+$qty;
-$query1 = mysqli_query($conn,"update sstock_brg set stock='$sisa' where idx='$barang'");
-
-$query2 = mysqli_query($conn,"insert into sbrg_masuk (idx,tgl,jumlah,keterangan) values('$barang','$tanggal','$qty','$ket')");
-
-if($query1 && $query2){
-    echo " <div class='alert alert-success'>
-    <strong>Success!</strong> Redirecting you back in 1 seconds.
-  </div>
-<meta http-equiv='refresh' content='1; url= masuk.php'/>  ";
-} else {
-    echo "<div class='alert alert-warning'>
-    <strong>Failed!</strong> Redirecting you back in 1 seconds.
-  </div>
- <meta http-equiv='refresh' content='1; url= masuk.php'/> ";
+if(!isset($_POST['barang'], $_POST['qty'], $_POST['tanggal'])){
+    header("location:masuk.php");
+    exit;
 }
 
+$barang   = $_POST['barang'];
+$qty      = (int) $_POST['qty'];
+$tanggal  = $_POST['tanggal'];
+$ket      = $_POST['ket'];
 
-?>
+if($qty <= 0){
+    echo "<script>alert('Jumlah harus lebih dari 0'); window.location='masuk.php';</script>";
+    exit;
+}
 
-<html>
-<head>
-  <title>Barang Masuk</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
-</head>
+$dt = mysqli_query($conn,"SELECT stock FROM sstock_brg WHERE idx='$barang'");
+if(mysqli_num_rows($dt) == 0){
+    echo "<script>alert('Barang tidak ditemukan'); window.location='masuk.php';</script>";
+    exit;
+}
+$data = mysqli_fetch_assoc($dt);
+
+mysqli_begin_transaction($conn);
+
+$sisa = $data['stock'] + $qty;
+
+$q1 = mysqli_query($conn,"UPDATE sstock_brg SET stock='$sisa' WHERE idx='$barang'");
+$q2 = mysqli_query($conn,"INSERT INTO sbrg_masuk (idx,tgl,jumlah,keterangan)
+                          VALUES('$barang','$tanggal','$qty','$ket')");
+
+if($q1 && $q2){
+    mysqli_commit($conn);
+    header("location:masuk.php?status=success");
+} else {
+    mysqli_rollback($conn);
+    header("location:masuk.php?status=fail");
+}
+exit;
